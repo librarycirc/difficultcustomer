@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Patron Interaction Simulator</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#003366;--navy-mid:#1a4f8a;--navy-light:#dbeafe;--navy-pale:#f0f6ff;
+  --red:#b91c1c;--red-light:#fef2f2;--red-bd:#fca5a5;
+  --green:#15803d;--green-light:#f0fdf4;--green-bd:#86efac;
+  --amber:#92400e;--amber-light:#fffbeb;--amber-bd:#fcd34d;
+  --gold:#b8860b;--gold-light:#fef9c3;
+  --text:#1e293b;--muted:#64748b;--border:#e2e8f0;--bg:#f1f5f9;--surface:#fff;
+  --r:10px;--rl:16px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem 1rem 3rem}
+.wrap{max-width:680px;margin:0 auto}
+.screen{display:none}.screen.active{display:block}
+
+/* TOP BAR */
+.top-bar{background:var(--navy);color:#fff;border-radius:var(--rl);padding:1.2rem 1.5rem;margin-bottom:1.25rem;text-align:center}
+.top-bar h1{font-size:18px;font-weight:700}
+.top-bar p{font-size:12px;opacity:.72;margin-top:3px;text-transform:uppercase;letter-spacing:.07em}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1.5rem;margin-bottom:1.25rem}
+
+/* START SCREEN */
+.start-emoji{font-size:56px;text-align:center;margin-bottom:.75rem}
+.start-title{font-size:21px;font-weight:800;color:var(--navy);text-align:center;margin-bottom:.5rem}
+.start-sub{font-size:14px;color:var(--muted);text-align:center;line-height:1.7;margin-bottom:1.5rem}
+.scenario-box{background:var(--navy-pale);border:1px solid var(--navy-light);border-radius:var(--r);padding:1rem 1.25rem;margin-bottom:1.5rem;font-size:14px;line-height:1.75}
+.scenario-box strong{color:var(--navy)}
+.rules-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
+.rule-item{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:.85rem .75rem;text-align:center}
+.rule-icon{font-size:22px;margin-bottom:4px}
+.rule-val{font-size:12px;font-weight:700;color:var(--navy)}
+.rule-lbl{font-size:11px;color:var(--muted);margin-top:1px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;font-size:14px;font-weight:700;border-radius:var(--r);border:none;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-navy{background:var(--navy);color:#fff}.btn-navy:hover{background:var(--navy-mid)}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#166534}
+.btn-outline{background:var(--surface);color:var(--navy);border:1.5px solid var(--navy)}.btn-outline:hover{background:var(--navy-pale)}
+.btn-row{display:flex;gap:10px}.btn-row .btn{flex:1}
+
+/* HUD */
+.hud{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.25rem;margin-bottom:1rem}
+.hud-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.hud-patron{display:flex;align-items:center;gap:10px}
+.patron-emoji{font-size:36px;transition:all .3s;line-height:1}
+.patron-info strong{font-size:14px;color:var(--navy);display:block}
+.patron-info span{font-size:12px;color:var(--muted)}
+.hud-stats{display:flex;gap:10px}
+.stat-pill{font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:var(--navy-pale);color:var(--navy)}
+.stress-section{margin-top:4px}
+.stress-label{display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:5px}
+.stress-label span:first-child{color:var(--muted)}
+.stress-label span:last-child{color:var(--red);font-weight:700}
+.stress-track{background:var(--border);border-radius:20px;height:10px;overflow:hidden}
+.stress-fill{height:10px;border-radius:20px;transition:width .5s,background .5s;background:var(--green)}
+.stress-fill.med{background:#f59e0b}
+.stress-fill.high{background:var(--red)}
+
+/* CHAT AREA */
+.chat-area{background:var(--navy-pale);border:1px solid var(--navy-light);border-radius:var(--rl);padding:1rem;margin-bottom:1rem;min-height:120px;display:flex;flex-direction:column;gap:10px}
+.bubble{max-width:80%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.55;position:relative}
+.bubble-patron{background:var(--navy);color:#fff;border-bottom-left-radius:4px;align-self:flex-start}
+.bubble-patron::before{content:attr(data-name);display:block;font-size:10px;font-weight:700;opacity:.65;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em}
+.bubble-system{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:10px;align-self:center;font-size:12px;font-style:italic;max-width:100%;text-align:center}
+
+/* CHOICES */
+.choices-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.choices{display:flex;flex-direction:column;gap:8px;margin-bottom:1rem}
+.choice{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all .15s;background:var(--surface);text-align:left;font-family:inherit;width:100%}
+.choice:hover:not(:disabled){border-color:var(--navy);background:var(--navy-pale)}
+.choice:disabled{cursor:default;opacity:.7}
+.choice-letter{width:26px;height:26px;border-radius:50%;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--navy-pale);color:var(--navy);transition:background .15s,color .15s}
+.choice-text{font-size:13px;color:var(--text);line-height:1.45;padding-top:2px}
+.choice.result-perfect{border-color:var(--green-bd);background:var(--green-light)}
+.choice.result-perfect .choice-letter{background:var(--green);color:#fff}
+.choice.result-perfect .choice-text{color:var(--green);font-weight:600}
+.choice.result-bad{border-color:var(--red-bd);background:var(--red-light)}
+.choice.result-bad .choice-letter{background:var(--red);color:#fff}
+.choice.result-bad .choice-text{color:var(--red);font-weight:600}
+.choice.result-dim{opacity:.45}
+
+/* FEEDBACK */
+.feedback-box{border-radius:var(--r);padding:12px 14px;font-size:13px;line-height:1.65;margin-bottom:1rem;display:none}
+.feedback-box.show{display:block}
+.fb-perfect{background:var(--green-light);border:1px solid var(--green-bd);color:#14532d}
+.fb-aggressive{background:var(--red-light);border:1px solid var(--red-bd);color:#7f1d1d}
+.fb-weak{background:var(--amber-light);border:1px solid var(--amber-bd);color:var(--amber)}
+.feedback-box strong{display:block;margin-bottom:3px;font-size:14px}
+
+/* PROGRESS BAR */
+.round-progress{display:flex;gap:6px;margin-bottom:1rem}
+.rp-dot{flex:1;height:5px;border-radius:20px;background:var(--border);transition:background .3s}
+.rp-dot.perfect{background:var(--green)}
+.rp-dot.bad{background:var(--red)}
+.rp-dot.current{background:var(--navy);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* END SCREENS */
+.end-hero{text-align:center;padding:1rem 0}
+.end-emoji{font-size:60px;margin-bottom:.75rem}
+.end-title{font-size:24px;font-weight:800;color:var(--navy);margin-bottom:.5rem}
+.end-sub{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:1.5rem}
+.end-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
+.es-item{background:var(--navy-pale);border-radius:var(--r);padding:.9rem .5rem;text-align:center}
+.es-val{font-size:22px;font-weight:800;color:var(--navy)}
+.es-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+
+/* BADGE */
+.badge-wrap{background:linear-gradient(135deg,var(--navy),var(--navy-mid));border-radius:var(--rl);padding:2rem 1.5rem;text-align:center;margin-bottom:1.25rem;position:relative;overflow:hidden}
+.badge-wrap::before{content:'★  ★  ★';position:absolute;top:10px;left:0;right:0;text-align:center;font-size:11px;color:rgba(240,180,41,.3);letter-spacing:12px}
+.badge-icon{font-size:52px;margin-bottom:.5rem}
+.badge-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.6);margin-bottom:.25rem}
+.badge-name{font-size:22px;font-weight:800;color:#f0b429;margin-bottom:.25rem}
+.badge-sub{font-size:13px;color:rgba(255,255,255,.7)}
+
+/* GAME OVER */
+.gameover-box{background:var(--red-light);border:2px solid var(--red-bd);border-radius:var(--rl);padding:1.5rem;text-align:center;margin-bottom:1.25rem}
+.go-icon{font-size:52px;margin-bottom:.5rem}
+.go-title{font-size:20px;font-weight:800;color:var(--red);margin-bottom:.5rem}
+.go-sub{font-size:14px;color:#7f1d1d;line-height:1.65}
+
+@media(max-width:480px){body{padding:1rem .75rem 2rem}.card{padding:1.1rem}.bubble{max-width:92%}.end-stats{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top-bar">
+    <h1>🎭 Patron Interaction Simulator</h1>
+    <p>University Library · Weekend Training Module</p>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="screen active" id="screen-start">
+    <div class="card">
+      <div class="start-emoji">😤</div>
+      <div class="start-title">Meet "Angry Al"</div>
+      <div class="start-sub">Practice handling a difficult patron situation using professional, policy-based communication.</div>
+      <div class="scenario-box">
+        📅 <strong>Situation:</strong> It's <strong>Saturday at 2:00 PM</strong>. A community member — Al — has walked in and wants to use the computers. You kindly explain the weekend policy, but Al is escalating and getting loud.<br><br>
+        📋 <strong>Policy:</strong> Community members are only permitted <strong>Monday – Friday, 9 AM – 5 PM</strong>. No exceptions on weekends.
+      </div>
+      <div class="rules-grid">
+        <div class="rule-item"><div class="rule-icon">💬</div><div class="rule-val">5 Rounds</div><div class="rule-lbl">of dialogue</div></div>
+        <div class="rule-item"><div class="rule-icon">⚡</div><div class="rule-val">3 Strikes</div><div class="rule-lbl">then game over</div></div>
+        <div class="rule-item"><div class="rule-icon">🏅</div><div class="rule-val">Badge</div><div class="rule-lbl">if you succeed</div></div>
+      </div>
+      <button class="btn btn-navy" onclick="startGame()">Start Simulation →</button>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div class="screen" id="screen-game">
+
+    <!-- HUD -->
+    <div class="hud">
+      <div class="hud-top">
+        <div class="hud-patron">
+          <div class="patron-emoji" id="patron-emoji">😐</div>
+          <div class="patron-info">
+            <strong id="patron-name">Angry Al</strong>
+            <span id="patron-mood">Mood: Irritated</span>
+          </div>
+        </div>
+        <div class="hud-stats">
+          <div class="stat-pill">Round <span id="round-num">1</span>/5</div>
+          <div class="stat-pill">✅ <span id="score-num">0</span></div>
+        </div>
+      </div>
+      <div class="stress-section">
+        <div class="stress-label"><span>😌 Stress Meter</span><span id="stress-label-text">Calm</span></div>
+        <div class="stress-track"><div class="stress-fill" id="stress-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- ROUND PROGRESS -->
+    <div class="round-progress" id="round-progress"></div>
+
+    <!-- CHAT -->
+    <div class="chat-area" id="chat-area"></div>
+
+    <!-- CHOICES -->
+    <div class="choices-label">How do you respond?</div>
+    <div class="choices" id="choices"></div>
+
+    <!-- FEEDBACK -->
+    <div class="feedback-box" id="feedback-box"></div>
+
+    <button class="btn btn-navy" id="next-btn" style="display:none" onclick="nextRound()">Next →</button>
+  </div>
+
+  <!-- WIN SCREEN -->
+  <div class="screen" id="screen-win">
+    <div class="badge-wrap">
+      <div class="badge-icon">🏅</div>
+      <div class="badge-title">Certified Achievement</div>
+      <div class="badge-name">Customer Service Master</div>
+      <div class="badge-sub">Patron Interaction Simulator · Weekend Module</div>
+    </div>
+    <div class="card">
+      <div class="end-hero">
+        <div class="end-emoji">🎉</div>
+        <div class="end-title">Excellent Work!</div>
+        <div class="end-sub" id="win-sub"></div>
+      </div>
+      <div class="end-stats">
+        <div class="es-item"><div class="es-val" id="win-perfect"></div><div class="es-lbl">Perfect</div></div>
+        <div class="es-item"><div class="es-val" id="win-mistakes"></div><div class="es-lbl">Mistakes</div></div>
+        <div class="es-item"><div class="es-val" id="win-score"></div><div class="es-lbl">Score</div></div>
+      </div>
+      <button class="btn btn-outline" onclick="restartGame()">↺ Play Again</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div class="screen" id="screen-gameover">
+    <div class="gameover-box">
+      <div class="go-icon">🚨</div>
+      <div class="go-title">Game Over — Call Security!</div>
+      <div class="go-sub" id="go-sub">Al has become too agitated to handle alone. In a real situation, this is when you would calmly say: <em>"Sir, I'm going to need to call Campus Security at this point."</em> and dial <strong>#4100</strong>.</div>
+    </div>
+    <div class="card">
+      <p style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:10px">📖 What went wrong?</p>
+      <div id="go-review" style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:1.25rem"></div>
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="restartGame()">↺ Try Again</button>
+        <button class="btn btn-navy" onclick="showStart()">← Back to Start</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+const ROUNDS=[
+  {
+    patronSays:"I've been coming here for YEARS. This is ridiculous! I just need to use the computer for 20 minutes.",
+    mood:'😤',moodLabel:'Irritated',
+    choices:[
+      {label:'A',text:'"Sir, I already told you. The answer is NO. You need to leave right now or I\'m calling security."',type:'aggressive',
+       fb:'Too Aggressive. Threatening security immediately escalates the situation unnecessarily. Al hasn\'t crossed a security line yet — this response is likely to make him much angrier and could be seen as discriminatory enforcement.'},
+      {label:'B',text:'"Oh... well, I mean, maybe just this once I could let you? It\'s only 20 minutes..."',type:'weak',
+       fb:'Too Weak. Never bend the policy, even for "just this once." This creates precedent, is unfair to other patrons, and signals that pushing back will get results. Al will try harder next time.'},
+      {label:'C',text:'"I completely understand your frustration, and I\'m sorry for the inconvenience. Unfortunately, our community access policy only allows visits Monday through Friday, 9 to 5. That\'s a university-wide rule I\'m required to follow."',type:'perfect',
+       fb:'Perfect. You acknowledged his feelings ("I understand your frustration"), stated the policy clearly and calmly, attributed it to the institution (not yourself), and used a professional, non-defensive tone.'}
+    ]
+  },
+  {
+    patronSays:"Who made up this STUPID rule? I pay taxes — this university belongs to me as much as anyone!",
+    mood:'😠',moodLabel:'Angry',
+    choices:[
+      {label:'A',text:'"Actually, tax money doesn\'t give you any special rights here. This is university property and you\'re subject to our rules."',type:'aggressive',
+       fb:'Too Aggressive. While technically not wrong, this is condescending and argumentative. It directly challenges Al\'s statement in a way that will inflame the situation rather than defuse it.'},
+      {label:'B',text:'"You\'re right, that\'s a really good point... I\'m not sure why the rule exists honestly."',type:'weak',
+       fb:'Too Weak. Never undermine the institution\'s policies, even if you personally disagree. This invites further argument and makes you look uncertain and unreliable.'},
+      {label:'C',text:'"That\'s a fair concern, and you\'re welcome to share your feedback with library administration — I can give you the contact information. However, today I\'m not able to make exceptions to the policy."',type:'perfect',
+       fb:'Perfect. You validated his frustration constructively, offered a legitimate next step (administration feedback), and held the boundary firmly without being confrontational. This is textbook de-escalation.'}
+    ]
+  },
+  {
+    patronSays:"Let me speak to your MANAGER right now. You clearly don\'t know what you\'re doing.",
+    mood:'😡',moodLabel:'Very Angry',
+    choices:[
+      {label:'A',text:'"My manager will tell you the exact same thing. There\'s no point."',type:'aggressive',
+       fb:'Too Aggressive. Even if true, this comes across as dismissive and rude. It shuts down the patron\'s legitimate right to escalate and escalates tension instead of offering a real path forward.'},
+      {label:'B',text:'"Oh no, please don\'t be upset with me... I\'m so sorry, let me just see what I can do..."',type:'weak',
+       fb:'Too Weak. Apologizing excessively and implying you might "do something" signals weakness and suggests the policy may be negotiable. Never apologize for enforcing policy — only for the inconvenience it causes.'},
+      {label:'C',text:'"Absolutely. My coordinator isn\'t on-site today as it\'s the weekend, but I can provide you with their contact information so you can reach out directly. I\'m happy to note your concerns as well."',type:'perfect',
+       fb:'Perfect. You respected his right to escalate, gave him a real, constructive option, and remained professional. Offering to note his concerns shows you take him seriously while not compromising the policy.'}
+    ]
+  },
+  {
+    patronSays:"This is discrimination! I\'m going to report this library to the city. Everyone is watching you right now.",
+    mood:'😡',moodLabel:'Escalating',
+    choices:[
+      {label:'A',text:'"That\'s not discrimination and you know it. Please lower your voice or I will have to ask you to leave immediately."',type:'aggressive',
+       fb:'Too Aggressive. Directly contradicting a discrimination claim in a tense moment is risky. While the policy is applied equally, this isn\'t the moment for a legal debate. Commanding someone to lower their voice can escalate further.'},
+      {label:'B',text:'"I\'m really sorry you feel that way... maybe I can just look the other way just for today..."',type:'weak',
+       fb:'Too Weak. Never offer to "look the other way." This is a serious breach of policy and fairness to all other community members who were turned away. It also exposes you and the institution to liability.'},
+      {label:'C',text:'"I\'m sorry this feels that way. Our policy applies equally to all community members, regardless of who they are. I want to help — if you\'d like, I can write down the administration\'s contact info for you right now."',type:'perfect',
+       fb:'Perfect. You calmly addressed the discrimination concern without arguing, reinforced equal application of policy, stayed composed despite the pressure of "everyone watching," and offered a constructive option. Steady, calm professionalism is the gold standard.'}
+    ]
+  },
+  {
+    patronSays:"Fine. FINE. But I\'m leaving a terrible review online and I\'m never coming back. This is your fault.",
+    mood:'😤',moodLabel:'Deflating',
+    choices:[
+      {label:'A',text:'"That\'s your right. Go ahead and write whatever you want."',type:'aggressive',
+       fb:'Too Aggressive. Even though Al is deflating, this dismissive sign-off is unprofessional and leaves him feeling disrespected. He might reconsider and escalate again — always close graciously.'},
+      {label:'B',text:'"Oh please don\'t do that! I\'ll lose my job! Please, is there anything I can do to change your mind?"',type:'weak',
+       fb:'Too Weak. Panicking at the threat of a review shows unprofessionalism and opens the door for manipulation. Patrons should never feel they can control staff through threats.'},
+      {label:'C',text:'"I\'m truly sorry for the frustration today, Al. Online feedback is always welcome — it helps administration review policies. We do hope to see you here during community access hours, Monday through Friday. Have a safe weekend."',type:'perfect',
+       fb:'Perfect ending. You closed with warmth and professionalism, invited legitimate feedback without fear, reinforced the correct access hours one last time, and wished him well. This leaves the door open for a positive future interaction.'}
+    ]
+  }
+];
+
+let round=0,stress=0,perfects=0,mistakes=0,roundResults=[];
+const MAX_STRESS=3;
+
+function startGame(){
+  round=0;stress=0;perfects=0;mistakes=0;roundResults=[];
+  showScreen('screen-game');
+  buildRoundDots();
+  renderRound();
+}
+
+function buildRoundDots(){
+  const rp=document.getElementById('round-progress');
+  rp.innerHTML='';
+  ROUNDS.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='rp-dot'+(i===0?' current':'');
+    d.id='dot-'+i;
+    rp.appendChild(d);
+  });
+}
+
+function renderRound(){
+  const r=ROUNDS[round];
+  document.getElementById('round-num').textContent=round+1;
+  document.getElementById('score-num').textContent=perfects;
+  document.getElementById('patron-emoji').textContent=r.mood;
+  document.getElementById('patron-mood').textContent='Mood: '+r.moodLabel;
+
+  const chat=document.getElementById('chat-area');
+  chat.innerHTML='';
+  if(round===0){
+    const sys=document.createElement('div');
+    sys.className='bubble bubble-system';
+    sys.textContent='Saturday 2:00 PM · Al approaches the circulation desk';
+    chat.appendChild(sys);
+  }
+  const bub=document.createElement('div');
+  bub.className='bubble bubble-patron';
+  bub.setAttribute('data-name','Angry Al');
+  bub.textContent=r.patronSays;
+  chat.appendChild(bub);
+
+  const choices=document.getElementById('choices');
+  choices.innerHTML='';
+  r.choices.forEach((c,i)=>{
+    const btn=document.createElement('button');
+    btn.className='choice';
+    btn.innerHTML='<div class="opt-letter choice-letter">'+c.label+'</div><div class="choice-text">'+c.text+'</div>';
+    btn.onclick=()=>pick(i,btn);
+    choices.appendChild(btn);
+  });
+
+  document.getElementById('feedback-box').className='feedback-box';
+  document.getElementById('next-btn').style.display='none';
+}
+
+function pick(idx,el){
+  const r=ROUNDS[round];
+  const c=r.choices[idx];
+  const all=document.querySelectorAll('.choice');
+  all.forEach(b=>{b.disabled=true;});
+
+  const isGood=c.type==='perfect';
+  if(isGood){
+    perfects++;
+    el.classList.add('result-perfect');
+    roundResults.push('perfect');
+  } else {
+    mistakes++;stress++;
+    el.classList.add('result-bad');
+    roundResults.push('bad');
+    updateDot(round,'bad');
+    updateStress();
+  }
+  all.forEach((b,i)=>{if(i!==idx)b.classList.add('result-dim');});
+  if(isGood)updateDot(round,'perfect');
+
+  const fb=document.getElementById('feedback-box');
+  fb.className='feedback-box show '+(c.type==='perfect'?'fb-perfect':c.type==='aggressive'?'fb-aggressive':'fb-weak');
+  const icon=c.type==='perfect'?'✅ Great choice!':c.type==='aggressive'?'❌ Too aggressive':'⚠️ Too weak';
+  fb.innerHTML='<strong>'+icon+'</strong>'+c.fb;
+
+  const chat=document.getElementById('chat-area');
+  const you=document.createElement('div');
+  you.className='bubble';
+  you.style.cssText='background:var(--navy-pale);border:1px solid var(--navy-light);border-bottom-right-radius:4px;align-self:flex-end;color:var(--text)';
+  you.setAttribute('data-name','You');
+  you.style.position='relative';
+  const nameTag=document.createElement('div');
+  nameTag.style.cssText='font-size:10px;font-weight:700;color:var(--navy);opacity:.65;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em';
+  nameTag.textContent='YOU';
+  you.prepend(nameTag);
+  you.appendChild(document.createTextNode(c.text));
+  chat.appendChild(you);
+  chat.scrollTop=chat.scrollHeight;
+
+  if(stress>=MAX_STRESS){
+    setTimeout(()=>gameOver(),1200);
+    return;
+  }
+
+  const nb=document.getElementById('next-btn');
+  nb.style.display='flex';
+  nb.textContent=round===ROUNDS.length-1?'See Results →':'Next Round →';
+}
+
+function updateDot(i,type){
+  const d=document.getElementById('dot-'+i);
+  if(d){d.classList.remove('current');d.classList.add(type);}
+}
+
+function updateStress(){
+  const pct=Math.min(stress/MAX_STRESS*100,100);
+  const fill=document.getElementById('stress-fill');
+  fill.style.width=pct+'%';
+  fill.className='stress-fill'+(pct<=33?'':pct<=66?' med':' high');
+  const labels=['Calm','Tense','Very Tense','CRITICAL'];
+  document.getElementById('stress-label-text').textContent=labels[Math.min(stress,3)];
+}
+
+function nextRound(){
+  const prevDot=document.getElementById('dot-'+round);
+  if(prevDot&&!prevDot.classList.contains('perfect')&&!prevDot.classList.contains('bad'))
+    prevDot.classList.add('perfect');
+  round++;
+  if(round>=ROUNDS.length){showWin();return;}
+  const nextDot=document.getElementById('dot-'+round);
+  if(nextDot){nextDot.classList.add('current');}
+  renderRound();
+}
+
+function showWin(){
+  showScreen('screen-win');
+  const score=Math.round(perfects/ROUNDS.length*100);
+  document.getElementById('win-perfect').textContent=perfects;
+  document.getElementById('win-mistakes').textContent=mistakes;
+  document.getElementById('win-score').textContent=score+'%';
+  document.getElementById('win-sub').textContent=
+    perfects===ROUNDS.length
+      ?"Flawless! You handled every exchange with perfect professionalism. Al left without incident and you maintained full policy compliance."
+      :"You successfully de-escalated the situation and upheld library policy. "+mistakes+" mistake"+(mistakes!==1?'s were':' was')+" made — review the feedback to sharpen your responses.";
+}
+
+function gameOver(){
+  showScreen('screen-gameover');
+  const bad=roundResults.filter(r=>r==='bad');
+  document.getElementById('go-review').innerHTML=
+    'You made <strong>'+bad.length+' poor choice'+(bad.length!==1?'s':'')+'</strong> that raised Al\'s stress level to the breaking point. '
+    +'Remember: avoid aggressive language that escalates confrontations, and never offer to bend policy — even temporarily. '
+    +'When a patron reaches this level of agitation, the correct move is to <strong>calmly call Campus Security at #4100</strong> and step back from direct confrontation.';
+}
+
+function restartGame(){startGame();}
+function showStart(){showScreen('screen-start');}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
